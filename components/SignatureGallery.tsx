@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { X, Trash2, PenTool, Keyboard, Clock } from 'lucide-react';
+import { X, Trash2, PenTool, Keyboard } from 'lucide-react';
 import { SavedSignature } from '../types';
 import { getSvgPathFromStroke } from '../utils';
 import { getStroke } from 'perfect-freehand';
