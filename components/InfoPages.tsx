@@ -223,3 +223,14 @@ export const TermsPage: React.FC<PageProps> = ({ onNavigate }) => (
         </p>
     </PageLayout>
 );
+
+// Wrapper for Lazy Loading
+export const InfoPageWrapper: React.FC<{view: AppView, onNavigate: (view: AppView) => void}> = ({ view, onNavigate }) => {
+    switch (view) {
+        case 'about': return <AboutPage onNavigate={onNavigate} />;
+        case 'contact': return <ContactPage onNavigate={onNavigate} />;
+        case 'privacy': return <PrivacyPage onNavigate={onNavigate} />;
+        case 'terms': return <TermsPage onNavigate={onNavigate} />;
+        default: return null;
+    }
+};

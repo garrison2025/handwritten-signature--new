@@ -1,15 +1,24 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { PenTool, Keyboard, Shield, Zap, Layers, Menu, X, Star, Feather } from 'lucide-react';
 import TypeMode from './components/TypeMode';
-import DrawMode from './components/DrawMode';
 import ColorPicker from './components/ColorPicker';
 import Toast from './components/Toast';
-import { AboutPage, ContactPage, PrivacyPage, TermsPage } from './components/InfoPages';
-import Blog from './components/Blog';
 import { TabMode, SignatureColor, ToastMessage, AppView } from './types';
 import useLocalStorage from './hooks/useLocalStorage';
 import { FONTS, BLOG_POSTS } from './constants';
+
+// Code Splitting: Lazy load heavy components
+const DrawMode = React.lazy(() => import('./components/DrawMode'));
+const Blog = React.lazy(() => import('./components/Blog'));
+const InfoPages = React.lazy(() => import('./components/InfoPages').then(module => ({ default: module.InfoPageWrapper })));
+
+// Loading Component
+const LoadingSpinner = () => (
+    <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
+    </div>
+);
 
 function App() {
   // Navigation State
@@ -50,6 +59,7 @@ function App() {
                   setCurrentView('blog');
               }
           } else {
+              // Default to home for unknown routes (Soft 404 behavior)
               setCurrentView('home');
           }
       };
@@ -189,6 +199,7 @@ function App() {
     updateMeta('', description, 'og:description');
     updateMeta('', baseUrl + (path === '/' ? '' : path), 'og:url');
     updateMeta('', ogImage, 'og:image');
+    updateMeta('robots', 'index, follow');
 
     // Update Canonical Link
     let canonical = document.querySelector('link[rel="canonical"]');
@@ -360,14 +371,16 @@ function App() {
 
                   {/* Modes */}
                   <div className="w-full relative">
-                    {/* Render TypeMode but keep it mounted to preserve state */}
+                    {/* Keep TypeMode mounted as it's the primary view */}
                     <div className={activeTab === 'type' ? 'block' : 'hidden'}>
                          <TypeMode text={text} setText={setText} color={color} onShowToast={showToast} />
                     </div>
                     
-                    {/* Render DrawMode but keep it mounted to preserve canvas state */}
+                    {/* Lazy load DrawMode with Suspense */}
                     <div className={activeTab === 'draw' ? 'block' : 'hidden'}>
-                        <DrawMode color={color} isVisible={activeTab === 'draw'} onShowToast={showToast} />
+                        <Suspense fallback={<LoadingSpinner />}>
+                             <DrawMode color={color} isVisible={activeTab === 'draw'} onShowToast={showToast} />
+                        </Suspense>
                     </div>
                   </div>
                 </div>
@@ -412,7 +425,7 @@ function App() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       {[
                           { title: "1. Choose Your Mode", desc: "Select 'Type' in the handwritten signature generator for a polished font look, or 'Draw' to sketch with your finger/mouse." },
-                          { title: "2. Customize Style", desc: "Adjust slant, letter spacing, stroke width, and color within the generator to match your unique brand identity." },
+                          { title: "2. Customize Style", desc: "Adjust settings like slant, letter spacing, stroke width, and color within the generator to match your unique brand identity." },
                           { title: "3. Download & Use", desc: "Save your creation as a high-res PNG or SVG. Use the 'White Ink' mode for dark backgrounds." }
                       ].map((step, i) => (
                           <div key={i} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
@@ -438,13 +451,15 @@ function App() {
             </div>
         ) : (
             <div className="mt-4 sm:mt-8">
-                {currentView === 'blog' && <Blog view='blog' activeSlug={null} onNavigate={handleNavigate} onShowToast={showToast} />}
-                {currentView === 'blog-post' && <Blog view='blog-post' activeSlug={activeBlogSlug} onNavigate={handleNavigate} onShowToast={showToast} />}
-                
-                {currentView === 'about' && <AboutPage onNavigate={handleNavigate} />}
-                {currentView === 'contact' && <ContactPage onNavigate={handleNavigate} />}
-                {currentView === 'privacy' && <PrivacyPage onNavigate={handleNavigate} />}
-                {currentView === 'terms' && <TermsPage onNavigate={handleNavigate} />}
+                <Suspense fallback={<LoadingSpinner />}>
+                    {currentView === 'blog' && <Blog view='blog' activeSlug={null} onNavigate={handleNavigate} onShowToast={showToast} />}
+                    {currentView === 'blog-post' && <Blog view='blog-post' activeSlug={activeBlogSlug} onNavigate={handleNavigate} onShowToast={showToast} />}
+                    
+                    {/* Info Pages mapped via Wrapper */}
+                    {(currentView === 'about' || currentView === 'contact' || currentView === 'privacy' || currentView === 'terms') && (
+                        <InfoPages view={currentView} onNavigate={handleNavigate} />
+                    )}
+                </Suspense>
             </div>
         )}
       </main>

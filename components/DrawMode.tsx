@@ -4,6 +4,7 @@ import { Download, Trash2, Undo2, Redo2, PenTool, Edit3, FileCode, Play, Pause, 
 import { SignatureColor, PenStyle, Point, BackgroundPattern } from '../types';
 import { trimCanvas } from '../utils';
 import useLocalStorage from '../hooks/useLocalStorage';
+import { getStroke } from 'perfect-freehand';
 
 interface DrawModeProps {
   color: SignatureColor;
@@ -40,6 +41,51 @@ const DrawMode: React.FC<DrawModeProps> = ({ color, isVisible, onShowToast }) =>
   // Refs for active drawing
   const currentStroke = useRef<Point[]>([]);
   const rafRef = useRef<number | null>(null);
+
+  /**
+   * Helper: Convert Perfect-Freehand stroke points to SVG Path Data
+   */
+  const getSvgPathFromStroke = (strokePoints: number[][]) => {
+    if (!strokePoints.length) return "";
+
+    const d = strokePoints.reduce(
+      (acc, [x0, y0], i, arr) => {
+        const [x1, y1] = arr[(i + 1) % arr.length];
+        acc.push(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
+        return acc;
+      },
+      ["M", ...strokePoints[0], "Q"]
+    );
+
+    d.push("Z");
+    return d.join(" ");
+  };
+
+  /**
+   * Mobile Gesture Locking
+   * Prevent scrolling or refreshing when interacting with the canvas
+   */
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const preventDefault = (e: TouchEvent) => {
+        if (e.target === canvas) {
+            e.preventDefault();
+        }
+    };
+
+    // Add non-passive listener to block scrolling
+    document.addEventListener('touchmove', preventDefault, { passive: false });
+    
+    // Also prevent pull-to-refresh on mobile
+    document.body.style.overscrollBehavior = 'none';
+
+    return () => {
+        document.removeEventListener('touchmove', preventDefault);
+        document.body.style.overscrollBehavior = 'auto';
+    };
+  }, [isVisible]);
 
   // Initialize Canvas & Re-render
   useEffect(() => {
@@ -122,8 +168,6 @@ const DrawMode: React.FC<DrawModeProps> = ({ color, isVisible, onShowToast }) =>
       const dpr = window.devicePixelRatio || 1;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.scale(dpr, dpr);
-      ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
 
       let strokeIdx = 0;
       let pointIdx = 1;
@@ -139,10 +183,34 @@ const DrawMode: React.FC<DrawModeProps> = ({ color, isVisible, onShowToast }) =>
           const stroke = strokes[strokeIdx];
           
           if (stroke && stroke.points && pointIdx < stroke.points.length) {
-              const p1 = stroke.points[pointIdx - 1];
-              const p2 = stroke.points[pointIdx];
+              // Draw partial stroke
+              const partialPoints = stroke.points.slice(0, pointIdx + 1);
               
-              drawSegment(ctx, p1, p2, stroke.color, stroke.baseWidth, stroke.style);
+              if (stroke.style === 'fountain') {
+                  const outlinePoints = getStroke(partialPoints, {
+                      size: stroke.baseWidth * 3,
+                      thinning: 0.5,
+                      smoothing: 0.5,
+                      streamline: 0.5,
+                  });
+                  const pathData = getSvgPathFromStroke(outlinePoints);
+                  const path = new Path2D(pathData);
+                  ctx.fillStyle = stroke.color;
+                  ctx.fill(path);
+              } else {
+                  // Monoline partial
+                   ctx.beginPath();
+                   ctx.lineCap = 'round';
+                   ctx.lineJoin = 'round';
+                   ctx.strokeStyle = stroke.color;
+                   ctx.lineWidth = stroke.baseWidth;
+                   
+                   const p1 = stroke.points[pointIdx-1];
+                   const p2 = stroke.points[pointIdx];
+                   ctx.moveTo(p1.x, p1.y);
+                   ctx.lineTo(p2.x, p2.y);
+                   ctx.stroke();
+              }
               
               pointIdx += 2; // Speed multiplier
           } else {
@@ -167,34 +235,54 @@ const DrawMode: React.FC<DrawModeProps> = ({ color, isVisible, onShowToast }) =>
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.save();
       ctx.scale(dpr, dpr);
-      ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
 
       if (Array.isArray(strokes)) {
         strokes.forEach(stroke => {
             if (!stroke || !stroke.points || stroke.points.length < 2) return;
             
-            ctx.beginPath();
-            if (stroke.style === 'monoline') {
-              ctx.strokeStyle = stroke.color;
-              ctx.lineWidth = stroke.baseWidth;
-              ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-              for (let i = 1; i < stroke.points.length - 1; i++) {
-                  const p1 = stroke.points[i];
-                  const p2 = stroke.points[i + 1];
-                  const midX = (p1.x + p2.x) / 2;
-                  const midY = (p1.y + p2.y) / 2;
-                  ctx.quadraticCurveTo(p1.x, p1.y, midX, midY);
-              }
-              const last = stroke.points[stroke.points.length - 1];
-              if (last) {
-                ctx.lineTo(last.x, last.y);
-                ctx.stroke();
-              }
+            if (stroke.style === 'fountain') {
+                const outlinePoints = getStroke(stroke.points, {
+                    size: stroke.baseWidth * 3, // Multiplier for perfect-freehand
+                    thinning: 0.5,
+                    smoothing: 0.5,
+                    streamline: 0.5,
+                    easing: (t) => t,
+                    start: {
+                        taper: 0,
+                        easing: (t) => t,
+                    },
+                    end: {
+                        taper: 0,
+                        easing: (t) => t,
+                    },
+                });
+                
+                const pathData = getSvgPathFromStroke(outlinePoints);
+                const path = new Path2D(pathData);
+                ctx.fillStyle = stroke.color;
+                ctx.fill(path);
+
             } else {
-              for (let i = 1; i < stroke.points.length; i++) {
-                  drawSegment(ctx, stroke.points[i-1], stroke.points[i], stroke.color, stroke.baseWidth, 'fountain');
-              }
+                // Classic Monoline
+                ctx.beginPath();
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = stroke.color;
+                ctx.lineWidth = stroke.baseWidth;
+                
+                if (stroke.points.length > 0) {
+                    ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+                    for (let i = 1; i < stroke.points.length - 1; i++) {
+                        const p1 = stroke.points[i];
+                        const p2 = stroke.points[i + 1];
+                        const midX = (p1.x + p2.x) / 2;
+                        const midY = (p1.y + p2.y) / 2;
+                        ctx.quadraticCurveTo(p1.x, p1.y, midX, midY);
+                    }
+                    const last = stroke.points[stroke.points.length - 1];
+                    ctx.lineTo(last.x, last.y);
+                    ctx.stroke();
+                }
             }
         });
       }
@@ -202,46 +290,20 @@ const DrawMode: React.FC<DrawModeProps> = ({ color, isVisible, onShowToast }) =>
       ctx.restore();
   };
 
-  const drawSegment = (
-      ctx: CanvasRenderingContext2D, 
-      p1: Point, 
-      p2: Point, 
-      color: string, 
-      width: number, 
-      style: PenStyle
-  ) => {
-      if (!p1 || !p2) return;
-
-      ctx.strokeStyle = color;
-      
-      if (style === 'monoline') {
-          ctx.lineWidth = width;
-          ctx.beginPath();
-          ctx.moveTo(p1.x, p1.y);
-          ctx.lineTo(p2.x, p2.y);
-          ctx.stroke();
-      } else {
-          // SAFEGUARD: Fallback if pressure is missing (legacy data)
-          const pressure = p2.pressure ?? 0.5; 
-          const currentWidth = width * pressure;
-          
-          ctx.lineWidth = currentWidth || width; // Avoid NaN
-          ctx.beginPath();
-          ctx.moveTo(p1.x, p1.y);
-          ctx.lineTo(p2.x, p2.y);
-          ctx.stroke();
-      }
-  };
-
   const getCoordinates = (event: React.MouseEvent | React.TouchEvent): Point => {
     const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0, pressure: 1, time: Date.now() };
+    if (!canvas) return { x: 0, y: 0, pressure: 0.5, time: Date.now() };
     const rect = canvas.getBoundingClientRect();
     
-    let clientX, clientY;
+    let clientX, clientY, pressure = 0.5;
+    
     if ('touches' in event && event.touches.length > 0) {
       clientX = event.touches[0].clientX;
       clientY = event.touches[0].clientY;
+      // Force for touch if not supported
+      if ((event.touches[0] as any)['force']) {
+          pressure = (event.touches[0] as any)['force'];
+      }
     } else if ('changedTouches' in event && event.changedTouches.length > 0) {
       clientX = event.changedTouches[0].clientX;
       clientY = event.changedTouches[0].clientY;
@@ -253,7 +315,7 @@ const DrawMode: React.FC<DrawModeProps> = ({ color, isVisible, onShowToast }) =>
     return {
       x: clientX - rect.left,
       y: clientY - rect.top,
-      pressure: 1,
+      pressure: pressure,
       time: Date.now()
     };
   };
@@ -272,32 +334,60 @@ const DrawMode: React.FC<DrawModeProps> = ({ color, isVisible, onShowToast }) =>
     if (e.cancelable) e.preventDefault(); 
     
     const point = getCoordinates(e);
-    const lastPoint = currentStroke.current[currentStroke.current.length - 1];
+    // basic pressure simulation if device doesn't support it
+    if (point.pressure === 0.5) {
+        const lastPoint = currentStroke.current[currentStroke.current.length - 1];
+        if (lastPoint) {
+            const dist = Math.sqrt(Math.pow(point.x - lastPoint.x, 2) + Math.pow(point.y - lastPoint.y, 2));
+            point.pressure = Math.max(0.1, Math.min(1, 1 - (dist / 50))); // Simpler velocity pressure
+        }
+    }
 
-    if (!lastPoint) return;
-
-    // Calculate Velocity & Pressure
-    const dist = Math.sqrt(Math.pow(point.x - lastPoint.x, 2) + Math.pow(point.y - lastPoint.y, 2));
-    const timeDiff = point.time - lastPoint.time;
-    const velocity = timeDiff > 0 ? dist / timeDiff : 0;
-    
-    let newPressure = Math.max(0.2, Math.min(1.8, 1 - (velocity * 0.1)));
-    
-    const smoothing = 0.3; 
-    const lastPressure = lastPoint.pressure ?? 1; // Fallback
-    newPressure = (lastPressure * smoothing) + (newPressure * (1 - smoothing));
-    
-    point.pressure = newPressure;
     currentStroke.current.push(point);
 
-    const ctx = canvasRef.current?.getContext('2d');
-    if (ctx) {
+    // Live Render
+    // For performance, we could just draw the latest segment, but for perfect-freehand
+    // we need to redraw the current active stroke fully to see the tapering change live.
+    // To avoid full canvas clear, we could use a secondary canvas, but here we just re-render.
+    renderCanvas();
+    
+    // Draw current active stroke on top
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (ctx && currentStroke.current.length > 1) {
         const dpr = window.devicePixelRatio || 1;
         ctx.save();
         ctx.scale(dpr, dpr);
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        drawSegment(ctx, lastPoint, point, color, baseWidth, penStyle);
+        
+        if (penStyle === 'fountain') {
+            const outlinePoints = getStroke(currentStroke.current, {
+                size: baseWidth * 3,
+                thinning: 0.5,
+                smoothing: 0.5,
+                streamline: 0.5,
+            });
+            const pathData = getSvgPathFromStroke(outlinePoints);
+            const path = new Path2D(pathData);
+            ctx.fillStyle = color;
+            ctx.fill(path);
+        } else {
+            ctx.beginPath();
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = color;
+            ctx.lineWidth = baseWidth;
+            
+            const pts = currentStroke.current;
+            ctx.moveTo(pts[0].x, pts[0].y);
+            for (let i = 1; i < pts.length - 1; i++) {
+                 const p1 = pts[i];
+                 const p2 = pts[i+1];
+                 const midX = (p1.x + p2.x) / 2;
+                 const midY = (p1.y + p2.y) / 2;
+                 ctx.quadraticCurveTo(p1.x, p1.y, midX, midY);
+            }
+            ctx.stroke();
+        }
         ctx.restore();
     }
   };
@@ -321,6 +411,7 @@ const DrawMode: React.FC<DrawModeProps> = ({ color, isVisible, onShowToast }) =>
         setStrokes(newStrokes);
     }
     currentStroke.current = [];
+    renderCanvas(); // Finalize render
   };
 
   const undo = () => {
@@ -354,21 +445,18 @@ const DrawMode: React.FC<DrawModeProps> = ({ color, isVisible, onShowToast }) =>
       strokeData.forEach(stroke => {
           if (!stroke || !stroke.points || stroke.points.length < 2) return;
           
-          if (stroke.style === 'monoline') {
-               let d = `M ${stroke.points[0].x.toFixed(2)} ${stroke.points[0].y.toFixed(2)}`;
-               for (let i = 1; i < stroke.points.length - 1; i++) {
-                    const p1 = stroke.points[i];
-                    const p2 = stroke.points[i + 1];
-                    const midX = (p1.x + p2.x) / 2;
-                    const midY = (p1.y + p2.y) / 2;
-                    d += ` Q ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} ${midX.toFixed(2)} ${midY.toFixed(2)}`;
-               }
-               const last = stroke.points[stroke.points.length - 1];
-               d += ` L ${last.x.toFixed(2)} ${last.y.toFixed(2)}`;
-               paths += `<path d="${d}" stroke="${stroke.color}" stroke-width="${stroke.baseWidth}" fill="none" stroke-linecap="round" stroke-linejoin="round" />`;
+          if (stroke.style === 'fountain') {
+               const outlinePoints = getStroke(stroke.points, {
+                    size: stroke.baseWidth * 3,
+                    thinning: 0.5,
+                    smoothing: 0.5,
+                    streamline: 0.5,
+               });
+               const d = getSvgPathFromStroke(outlinePoints);
+               paths += `<path d="${d}" fill="${stroke.color}" />`;
           } else {
-              // Fountain fallback for SVG
-              let d = `M ${stroke.points[0].x.toFixed(2)} ${stroke.points[0].y.toFixed(2)}`;
+               // Monoline fallback
+               let d = `M ${stroke.points[0].x.toFixed(2)} ${stroke.points[0].y.toFixed(2)}`;
                for (let i = 1; i < stroke.points.length - 1; i++) {
                     const p1 = stroke.points[i];
                     const p2 = stroke.points[i + 1];

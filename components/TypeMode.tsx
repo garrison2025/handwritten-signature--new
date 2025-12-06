@@ -38,8 +38,19 @@ const TypeMode: React.FC<TypeModeProps> = ({ text, setText, color, onShowToast }
     };
   }, [text]);
 
-  // Wait for fonts to load
+  // Lazy Load Fonts Logic
   useEffect(() => {
+    const fontUrl = "https://fonts.googleapis.com/css2?family=Alex+Brush&family=Allura&family=Caveat:wght@400..700&family=Dancing+Script:wght@400..700&family=Great+Vibes&family=Herr+Von+Muellerhoff&family=Meddon&family=Monsieur+La+Doulaise&family=Mrs+Saint+Delafield&family=Pacifico&family=Parisienne&family=Pinyon+Script&family=Sacramento&family=WindSong:wght@400;500&family=Nothing+You+Could+Do&family=Zeyada&family=Homemade+Apple&family=Just+Me+Again+Down+Here&family=La+Belle+Aurore&family=Reenie+Beanie&family=Waiting+for+the+Sunrise&family=Covered+By+Your+Grace&family=Gloria+Hallelujah&display=swap";
+    
+    // Check if link already exists
+    if (!document.querySelector(`link[href="${fontUrl}"]`)) {
+        const link = document.createElement('link');
+        link.href = fontUrl;
+        link.rel = 'stylesheet';
+        document.head.appendChild(link);
+    }
+    
+    // Wait for fonts to be ready
     document.fonts.ready.then(() => {
         setFontsLoaded(true);
     });
@@ -378,7 +389,10 @@ const TypeMode: React.FC<TypeModeProps> = ({ text, setText, color, onShowToast }
   if (!fontsLoaded) {
       return (
           <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
+              <div className="flex flex-col items-center gap-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
+                  <p className="text-slate-500 text-sm">Loading fonts...</p>
+              </div>
           </div>
       )
   }

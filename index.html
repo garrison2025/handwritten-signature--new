@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -45,8 +46,9 @@
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Optimized font loading with display=swap -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Alex+Brush&family=Allura&family=Caveat:wght@400..700&family=Dancing+Script:wght@400..700&family=Great+Vibes&family=Herr+Von+Muellerhoff&family=Meddon&family=Monsieur+La+Doulaise&family=Mrs+Saint+Delafield&family=Pacifico&family=Parisienne&family=Pinyon+Script&family=Sacramento&family=WindSong:wght@400;500&family=Nothing+You+Could+Do&family=Zeyada&family=Homemade+Apple&family=Just+Me+Again+Down+Here&family=La+Belle+Aurore&family=Reenie+Beanie&family=Waiting+for+the+Sunrise&family=Covered+By+Your+Grace&family=Gloria+Hallelujah&display=swap" rel="stylesheet">
+    
+    <!-- Load only Core UI Fonts initially. Creative fonts are lazy loaded in TypeMode -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     
     <!-- Structured Data (JSON-LD) -->
     <script type="application/ld+json">
@@ -193,6 +195,33 @@
       .animate-toast {
         animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
       }
+      
+      /* Skip to content for accessibility */
+      .skip-link {
+        position: absolute;
+        top: -40px;
+        left: 0;
+        background: #0f172a;
+        color: white;
+        padding: 8px;
+        z-index: 100;
+        transition: top 0.2s;
+      }
+      .skip-link:focus {
+        top: 0;
+      }
+      
+      /* Progress Bar for Blog */
+      .reading-progress-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: #2563eb;
+        transform-origin: 0%;
+        z-index: 9999;
+      }
     </style>
   <script type="importmap">
 {
@@ -200,12 +229,25 @@
     "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
     "react/": "https://aistudiocdn.com/react@^19.2.1/",
     "react": "https://aistudiocdn.com/react@^19.2.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/"
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "perfect-freehand": "https://esm.sh/perfect-freehand@1.2.0"
   }
 }
 </script>
 </head>
   <body class="bg-[#F8F9FA] text-slate-900 antialiased selection:bg-slate-900 selection:text-white">
+    <a href="#root" class="skip-link">Skip to content</a>
     <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').then(registration => {
+            console.log('SW registered: ', registration);
+          }).catch(registrationError => {
+            console.log('SW registration failed: ', registrationError);
+          });
+        });
+      }
+    </script>
   </body>
 </html>
