@@ -1,8 +1,8 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { ArrowLeft, Calendar, Clock, Tag, Share2, ArrowRight, List } from 'lucide-react';
 import { BlogPost, AppView } from '../types';
 import { BLOG_POSTS } from '../constants';
+import SEO from './SEO';
 
 interface BlogProps {
     view: AppView;
@@ -103,6 +103,17 @@ const Blog: React.FC<BlogProps> = ({ view, activeSlug, onNavigate, onShowToast }
 
         return (
             <div className="relative pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <SEO 
+                    title={post.title}
+                    description={post.summary}
+                    image={post.image}
+                    type="article"
+                    slug={`blog/${post.slug}`}
+                    author={post.author}
+                    datePublished={post.date}
+                    schemaType="Article"
+                />
+
                 <div 
                     className="reading-progress-bar bg-blue-600 dark:bg-blue-500" 
                     style={{ transform: `scaleX(${readingProgress / 100})` }} 
@@ -201,6 +212,11 @@ const Blog: React.FC<BlogProps> = ({ view, activeSlug, onNavigate, onShowToast }
 
     return (
         <div className="max-w-6xl mx-auto animate-in fade-in duration-700 pb-20">
+            <SEO 
+                title="Blog" 
+                description="Insights on digital identity, design tips, and productivity hacks for the paperless world."
+                slug="blog"
+            />
             <header className="text-center max-w-2xl mx-auto mb-16">
                 <h1 className="text-4xl md:text-5xl font-serif-display text-slate-900 dark:text-white mb-4">SignCraft Blog</h1>
                 <p className="text-lg text-slate-500 dark:text-slate-400 font-light">

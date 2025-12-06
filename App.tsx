@@ -5,6 +5,7 @@ import ColorPicker from './components/ColorPicker';
 import Toast from './components/Toast';
 import DocumentSigner from './components/DocumentSigner';
 import SignatureGallery from './components/SignatureGallery';
+import SEO from './components/SEO';
 import { TabMode, SignatureColor, ToastMessage, AppView, Theme, DocumentData, Stroke, TypeStyle, SavedSignature, FontOption } from './types';
 import useLocalStorage from './hooks/useLocalStorage';
 import { FONTS } from './constants';
@@ -105,33 +106,6 @@ function App() {
       window.addEventListener('popstate', onPopState);
       return () => window.removeEventListener('popstate', onPopState);
   }, []);
-
-  // SEO Logic
-  useEffect(() => {
-    // Setting document title
-    let title = "SignCraft - Free Handwritten Signature Generator";
-    if (currentView === 'home') {
-        if (activeTab === 'draw') title = "Draw Signature Online | SignCraft";
-    } else if (currentView === 'about') {
-        title = "About Us | SignCraft";
-    } else if (currentView === 'blog') {
-        title = "Blog | SignCraft";
-    } else if (currentView === 'contact') {
-        title = "Contact | SignCraft";
-    }
-    // Note: Blog post titles are handled in the Blog component
-    document.title = title;
-
-    // Update Canonical URL
-    const canonicalLink = document.querySelector("link[rel='canonical']") || document.createElement('link');
-    canonicalLink.setAttribute('rel', 'canonical');
-    const path = window.location.pathname === '/' ? '' : window.location.pathname;
-    canonicalLink.setAttribute('href', `https://handwrittensignaturegenerator.org${path}`);
-    if (!document.head.contains(canonicalLink)) {
-        document.head.appendChild(canonicalLink);
-    }
-
-  }, [currentView, activeTab, activeBlogSlug]);
 
   const handleNavigate = (view: AppView, slug?: string) => {
       if (view === currentView && slug === activeBlogSlug) return;
@@ -293,6 +267,12 @@ function App() {
       <main className="flex-grow px-4 sm:px-6 py-8 sm:py-12 bg-[#F8F9FA] dark:bg-slate-950 transition-colors duration-300">
         {currentView === 'home' ? (
             <div className="max-w-4xl mx-auto">
+              <SEO 
+                title={activeTab === 'draw' ? "Draw Signature Online - Free Tool" : "SignCraft - Free Handwritten Signature Generator"} 
+                description="Create professional, realistic handwritten signatures online. Type to generate or draw your own without any sign-up."
+                schemaType="SoftwareApplication"
+              />
+              
               <div className="text-center mb-10 sm:mb-16 space-y-4 sm:space-y-6 animate-in slide-in-from-bottom-4 duration-700">
                 <div className="inline-flex items-center gap-1 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-100 dark:border-yellow-900/50 px-3 py-1 rounded-full mb-2">
                     <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
