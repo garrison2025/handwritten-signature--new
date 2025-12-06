@@ -15,8 +15,8 @@ interface SEOProps {
 
 const SEO: React.FC<SEOProps> = ({
   title = "SignCraft - Free Handwritten Signature Generator | Type & Draw",
-  description = "Create professional, realistic handwritten signatures online. Type to generate or draw your own. Features vector SVG export, pressure sensitivity, and privacy-focused client-side processing.",
-  keywords = "signature generator, handwritten signature, online signature, digital signature, svg signature, draw signature, electronic signature, free signature maker",
+  description = "Create professional handwritten signatures for free. Type or draw realistic signatures. 100% private, client-side processing. Download SVG/PNG instantly.",
+  keywords = "signature generator, handwritten signature, online signature, digital signature, svg signature, draw signature, electronic signature, free signature maker, signature creator",
   image = "https://ui-avatars.com/api/?name=Sign+Craft&background=0f172a&color=fff&size=512",
   type = 'website',
   slug = '',
