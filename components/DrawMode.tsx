@@ -1,8 +1,8 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Download, Trash2, Undo2, Redo2, PenTool, Edit3, Play, Pause, Grid3X3, AlignJustify, Square, Copy, ImagePlus, Clapperboard } from 'lucide-react';
-import { SignatureColor, PenStyle, Point, BackgroundPattern } from '../types';
-import { trimCanvas } from '../utils';
+import { Download, Trash2, Undo2, Redo2, PenTool, Edit3, Play, Pause, Grid3X3, AlignJustify, Square, Copy, ImagePlus, Clapperboard, FolderHeart } from 'lucide-react';
+import { SignatureColor, PenStyle, Point, BackgroundPattern, Stroke } from '../types';
+import { trimCanvas, getSvgPathFromStroke } from '../utils';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { getStroke } from 'perfect-freehand';
 
@@ -11,30 +11,49 @@ interface DrawModeProps {
   isVisible: boolean;
   onShowToast: (message: string, type: 'success' | 'info') => void;
   onSignDocument: (signatureData: string) => void;
+  // Lifted State
+  strokes: Stroke[];
+  onStrokesChange: (strokes: Stroke[]) => void;
+  onSaveToGallery: () => void;
 }
 
-interface Stroke {
-  points: Point[];
-  color: string;
-  baseWidth: number;
-  style: PenStyle;
-}
-
-const DrawMode: React.FC<DrawModeProps> = ({ color, isVisible, onShowToast, onSignDocument }) => {
+const DrawMode: React.FC<DrawModeProps> = ({ 
+  color, 
+  isVisible, 
+  onShowToast, 
+  onSignDocument,
+  strokes,
+  onStrokesChange,
+  onSaveToGallery
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
   const [isDrawing, setIsDrawing] = useState(false);
   
-  // Persist tools and STROKES data
+  // Persist tools locally (user preference), but strokes are passed in
   const [baseWidth, setBaseWidth] = useLocalStorage<number>('sc_draw_width', 2.5);
   const [penStyle, setPenStyle] = useLocalStorage<PenStyle>('sc_draw_pen', 'fountain');
   const [bgPattern, setBgPattern] = useLocalStorage<BackgroundPattern>('sc_draw_bg', 'grid');
-  const [strokes, setStrokes] = useLocalStorage<Stroke[]>('sc_draw_strokes', []);
   
-  // Initialize history based on persisted strokes on mount
-  const [history, setHistory] = useState<Stroke[][]>(Array.isArray(strokes) ? [strokes] : [[]]);
-  const [currentHistoryIndex, setCurrentHistoryIndex] = useState(Array.isArray(strokes) && strokes.length > 0 ? 0 : -1);
+  // Internal history management
+  // We initialize history with the incoming strokes.
+  // Note: If strokes change externally (e.g. loaded from gallery), we must reset history.
+  const [history, setHistory] = useState<Stroke[][]>([strokes]);
+  const [currentHistoryIndex, setCurrentHistoryIndex] = useState(0);
+
+  // Sync history when strokes prop changes significantly (external load)
+  // We simple check if the current strokes match what we have in history.
+  useEffect(() => {
+    // If strokes is empty and history is not empty (cleared externally) OR
+    // strokes is not empty and different from current history head (loaded externally)
+    const currentHead = history[currentHistoryIndex];
+    if (strokes !== currentHead) {
+        setHistory([strokes]);
+        setCurrentHistoryIndex(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [strokes]);
 
   const [showSaveOptions, setShowSaveOptions] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -42,22 +61,6 @@ const DrawMode: React.FC<DrawModeProps> = ({ color, isVisible, onShowToast, onSi
   // Refs for active drawing
   const currentStroke = useRef<Point[]>([]);
   const rafRef = useRef<number | null>(null);
-
-  const getSvgPathFromStroke = (strokePoints: number[][]) => {
-    if (!strokePoints.length) return "";
-
-    const d = strokePoints.reduce(
-      (acc, [x0, y0], i, arr) => {
-        const [x1, y1] = arr[(i + 1) % arr.length];
-        acc.push(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
-        return acc;
-      },
-      ["M", ...strokePoints[0], "Q"]
-    );
-
-    d.push("Z");
-    return d.join(" ");
-  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -348,11 +351,16 @@ const DrawMode: React.FC<DrawModeProps> = ({ color, isVisible, onShowToast, onSi
             baseWidth: baseWidth,
             style: penStyle
         };
+        // Update history first
         const safeStrokes = Array.isArray(strokes) ? strokes : [];
         const newStrokes = [...safeStrokes.slice(0, currentHistoryIndex + 1), newStroke];
+        
+        // Update local history
         setHistory(prev => [...prev.slice(0, currentHistoryIndex + 1), newStrokes]);
         setCurrentHistoryIndex(prev => prev + 1);
-        setStrokes(newStrokes);
+        
+        // Notify parent
+        onStrokesChange(newStrokes);
     }
     currentStroke.current = [];
     renderCanvas(); 
@@ -363,7 +371,7 @@ const DrawMode: React.FC<DrawModeProps> = ({ color, isVisible, onShowToast, onSi
           const newIndex = currentHistoryIndex - 1;
           setCurrentHistoryIndex(newIndex);
           const newStrokes = newIndex >= 0 ? history[newIndex] : [];
-          setStrokes(newStrokes);
+          onStrokesChange(newStrokes);
       }
   };
 
@@ -372,12 +380,13 @@ const DrawMode: React.FC<DrawModeProps> = ({ color, isVisible, onShowToast, onSi
           const newIndex = currentHistoryIndex + 1;
           setCurrentHistoryIndex(newIndex);
           const newStrokes = history[newIndex];
-          setStrokes(newStrokes);
+          onStrokesChange(newStrokes);
       }
   };
 
   const clearCanvas = () => {
-    setStrokes([]);
+    onStrokesChange([]);
+    // Reset history to match clear state, but preserve redo stack? No, standard is new branch.
     setHistory(prev => [...prev.slice(0, currentHistoryIndex + 1), []]);
     setCurrentHistoryIndex(prev => prev + 1);
     setShowSaveOptions(false);
@@ -589,6 +598,10 @@ const DrawMode: React.FC<DrawModeProps> = ({ color, isVisible, onShowToast, onSi
           <div className="w-px h-6 bg-gray-200 dark:bg-slate-700 mx-1 hidden sm:block"></div>
           
           <div className="flex items-center gap-1 sm:gap-2 ml-0.5 sm:ml-1">
+              <button onClick={onSaveToGallery} disabled={!hasContent || isPlaying} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${hasContent && !isPlaying ? 'text-slate-700 dark:text-slate-200 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700' : 'text-gray-300 dark:text-slate-700 bg-gray-50 dark:bg-slate-900'}`} aria-label="Save to Gallery" title="Save to Gallery">
+                 <FolderHeart size={16} />
+              </button>
+              
               <button onClick={handleCopy} disabled={!hasContent || isPlaying} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${hasContent && !isPlaying ? 'text-slate-700 dark:text-slate-200 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700' : 'text-gray-300 dark:text-slate-700 bg-gray-50 dark:bg-slate-900'}`} aria-label="Copy Image" title="Copy to Clipboard">
                  <Copy size={16} />
                  <span className="hidden sm:inline">Copy</span>

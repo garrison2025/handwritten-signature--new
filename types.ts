@@ -53,6 +53,30 @@ export interface Point {
 
 export type BackgroundPattern = 'blank' | 'grid' | 'lines';
 
+export interface Stroke {
+  points: Point[];
+  color: string;
+  baseWidth: number;
+  style: PenStyle;
+}
+
+export type SignatureType = 'drawn' | 'typed';
+
+export interface SavedSignature {
+  id: string;
+  type: SignatureType;
+  date: number;
+  // For Typed
+  text?: string;
+  fontFamily?: string;
+  fontName?: string;
+  color: string;
+  style?: TypeStyle;
+  // For Drawn
+  strokes?: Stroke[];
+  backgroundColor?: string;
+}
+
 export interface BlogPost {
   id: string;
   title: string;

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Download, Copy, RefreshCw, X, SlidersHorizontal, MoreHorizontal, FileCode, ImagePlus } from 'lucide-react';
+import { Download, Copy, RefreshCw, X, SlidersHorizontal, MoreHorizontal, FileCode, ImagePlus, FolderHeart } from 'lucide-react';
 import { FONTS, PRESET_TEXTS } from '../constants';
 import { SignatureColor, FontOption, TypeStyle, SignatureLineOptions } from '../types';
 import { trimCanvas } from '../utils';
@@ -12,12 +12,23 @@ interface TypeModeProps {
   color: SignatureColor;
   onShowToast: (message: string, type: 'success' | 'info') => void;
   onSignDocument: (signatureData: string) => void;
+  // Lifted State
+  style: TypeStyle;
+  setStyle: (style: TypeStyle) => void;
+  onSaveToGallery: (font: FontOption) => void;
 }
 
-const TypeMode: React.FC<TypeModeProps> = ({ text, setText, color, onShowToast, onSignDocument }) => {
-  const [style, setStyle] = useLocalStorage<TypeStyle>('sc_type_style', { slant: 0, spacing: 0, subtitle: '' });
+const TypeMode: React.FC<TypeModeProps> = ({ 
+  text, 
+  setText, 
+  color, 
+  onShowToast, 
+  onSignDocument,
+  style,
+  setStyle,
+  onSaveToGallery
+}) => {
   const [lineOptions, setLineOptions] = useLocalStorage<SignatureLineOptions>('sc_line_options', { enabled: false, style: 'solid', showX: true });
-  const currentStyle = style || { slant: 0, spacing: 0, subtitle: '' };
   
   const [showControls, setShowControls] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -186,7 +197,7 @@ const TypeMode: React.FC<TypeModeProps> = ({ text, setText, color, onShowToast, 
     canvas.width = 1200;
     canvas.height = 800; 
     const textToDraw = text.trim() || 'Signature';
-    drawToCanvas(ctx, font, textToDraw, canvas.width, canvas.height, currentStyle, options.whiteInk, options.withBg);
+    drawToCanvas(ctx, font, textToDraw, canvas.width, canvas.height, style, options.whiteInk, options.withBg);
     const trimmed = trimCanvas(canvas);
     const dataUrl = trimmed.toDataURL('image/png');
     const link = document.createElement('a');
@@ -209,7 +220,7 @@ const TypeMode: React.FC<TypeModeProps> = ({ text, setText, color, onShowToast, 
     canvas.width = 1200;
     canvas.height = 800; 
     const textToDraw = text.trim() || 'Signature';
-    drawToCanvas(ctx, font, textToDraw, canvas.width, canvas.height, currentStyle);
+    drawToCanvas(ctx, font, textToDraw, canvas.width, canvas.height, style);
     const trimmed = trimCanvas(canvas);
     onSignDocument(trimmed.toDataURL('image/png'));
     setActiveDropdown(null);
@@ -218,9 +229,9 @@ const TypeMode: React.FC<TypeModeProps> = ({ text, setText, color, onShowToast, 
   const handleDownloadSVG = (font: FontOption) => {
     const textToDraw = text.trim() || 'Signature';
     const fontFamily = font.family.split(',')[0].trim();
-    const skewDeg = (currentStyle.slant || 0) * -1;
+    const skewDeg = (style.slant || 0) * -1;
     const textColor = color;
-    const subtitle = currentStyle.subtitle || '';
+    const subtitle = style.subtitle || '';
     
     let extraElements = '';
     let yText = '50%';
@@ -255,7 +266,7 @@ const TypeMode: React.FC<TypeModeProps> = ({ text, setText, color, onShowToast, 
   </style>
   ${filterDef}
   ${extraElements}
-  <text x="50%" y="${yText}" dominant-baseline="middle" text-anchor="middle" class="signature" transform="skewX(${skewDeg})" letter-spacing="${currentStyle.spacing || 0}" filter="url(#ink-bleed)">${textToDraw}</text>
+  <text x="50%" y="${yText}" dominant-baseline="middle" text-anchor="middle" class="signature" transform="skewX(${skewDeg})" letter-spacing="${style.spacing || 0}" filter="url(#ink-bleed)">${textToDraw}</text>
 </svg>`.trim();
 
     const blob = new Blob([svgContent], { type: "image/svg+xml;charset=utf-8" });
@@ -278,7 +289,7 @@ const TypeMode: React.FC<TypeModeProps> = ({ text, setText, color, onShowToast, 
       canvas.width = 1200;
       canvas.height = 800;
       const textToDraw = text.trim() || 'Signature';
-      drawToCanvas(ctx, font, textToDraw, canvas.width, canvas.height, currentStyle);
+      drawToCanvas(ctx, font, textToDraw, canvas.width, canvas.height, style);
       const trimmed = trimCanvas(canvas);
       trimmed.toBlob(async (blob) => {
         if (!blob) return;
@@ -328,8 +339,8 @@ const TypeMode: React.FC<TypeModeProps> = ({ text, setText, color, onShowToast, 
             <div className={`transition-all duration-300 overflow-hidden ${showControls ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'}`}>
                 <input
                     type="text"
-                    value={currentStyle.subtitle || ''}
-                    onChange={(e) => setStyle({...currentStyle, subtitle: e.target.value})}
+                    value={style.subtitle || ''}
+                    onChange={(e) => setStyle({...style, subtitle: e.target.value})}
                     placeholder="Add subtitle (e.g. Chief Executive Officer)"
                     className="w-full text-center text-lg font-medium tracking-wide text-slate-500 dark:text-slate-400 bg-transparent border-b border-dashed border-gray-200 dark:border-slate-700 focus:border-slate-400 outline-none placeholder:text-gray-300 pb-2"
                 />
@@ -348,15 +359,15 @@ const TypeMode: React.FC<TypeModeProps> = ({ text, setText, color, onShowToast, 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 bg-gray-50/50 dark:bg-slate-800/50 p-6 rounded-2xl w-full max-w-2xl border border-gray-100 dark:border-slate-700 animate-in slide-in-from-top-2 fade-in duration-300">
                 <div className="space-y-3">
                     <div className="flex justify-between text-xs uppercase tracking-wider font-semibold text-gray-400">
-                        <label>Slant</label><span>{currentStyle.slant}°</span>
+                        <label>Slant</label><span>{style.slant}°</span>
                     </div>
-                    <input type="range" min="-15" max="15" value={currentStyle.slant} onChange={(e) => setStyle({...currentStyle, slant: Number(e.target.value)})} className="w-full h-1.5 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer accent-slate-900 dark:accent-slate-200" />
+                    <input type="range" min="-15" max="15" value={style.slant} onChange={(e) => setStyle({...style, slant: Number(e.target.value)})} className="w-full h-1.5 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer accent-slate-900 dark:accent-slate-200" />
                 </div>
                 <div className="space-y-3">
                     <div className="flex justify-between text-xs uppercase tracking-wider font-semibold text-gray-400">
-                        <label>Spacing</label><span>{currentStyle.spacing}px</span>
+                        <label>Spacing</label><span>{style.spacing}px</span>
                     </div>
-                    <input type="range" min="-5" max="20" value={currentStyle.spacing} onChange={(e) => setStyle({...currentStyle, spacing: Number(e.target.value)})} className="w-full h-1.5 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer accent-slate-900 dark:accent-slate-200" />
+                    <input type="range" min="-5" max="20" value={style.spacing} onChange={(e) => setStyle({...style, spacing: Number(e.target.value)})} className="w-full h-1.5 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer accent-slate-900 dark:accent-slate-200" />
                 </div>
                 <div className="md:col-span-2 pt-4 border-t border-gray-200/50 dark:border-slate-700/50 flex flex-col sm:flex-row items-center justify-between gap-4">
                      <span className="text-xs uppercase tracking-wider font-semibold text-gray-400 self-start sm:self-center">Signature Line</span>
@@ -386,19 +397,19 @@ const TypeMode: React.FC<TypeModeProps> = ({ text, setText, color, onShowToast, 
                         <div className="w-full h-px bg-slate-300" style={{ borderBottom: lineOptions.style === 'dashed' ? '1px dashed #cbd5e1' : '1px solid #cbd5e1', background: 'transparent'}} />
                     </div>
                 )}
-              <p style={{ fontFamily: font.family, color: color, fontSize: 'clamp(2rem, 8vw, 3.5rem)', lineHeight: 1.2, transform: `skewX(-${currentStyle.slant || 0}deg) translateY(${lineOptions.enabled ? '-10px' : '0px'}) rotate(${(Math.random() - 0.5) * 2}deg)`, letterSpacing: `${currentStyle.spacing || 0}px`, textShadow: `0px 0px 1px ${color}`, opacity: 0.9 }} className="text-center break-words w-full select-none transition-all duration-300 z-10">
+              <p style={{ fontFamily: font.family, color: color, fontSize: 'clamp(2rem, 8vw, 3.5rem)', lineHeight: 1.2, transform: `skewX(-${style.slant || 0}deg) translateY(${lineOptions.enabled ? '-10px' : '0px'}) rotate(${(Math.random() - 0.5) * 2}deg)`, letterSpacing: `${style.spacing || 0}px`, textShadow: `0px 0px 1px ${color}`, opacity: 0.9 }} className="text-center break-words w-full select-none transition-all duration-300 z-10">
                 {debouncedText.trim() || 'Signature'}
               </p>
-              {currentStyle.subtitle && (
-                  <p className="text-center font-sans font-medium text-slate-500 text-sm tracking-widest uppercase mt-4 z-10 opacity-80" style={{ color: color }}>{currentStyle.subtitle}</p>
+              {style.subtitle && (
+                  <p className="text-center font-sans font-medium text-slate-500 text-sm tracking-widest uppercase mt-4 z-10 opacity-80" style={{ color: color }}>{style.subtitle}</p>
               )}
             </div>
             
             <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-xl backdrop-blur-[2px] z-20">
               <div className="flex flex-col items-center space-y-3 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
                 <div className="flex items-center space-x-2">
-                    <button onClick={() => handleCopy(font)} className="flex items-center space-x-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 px-4 py-2.5 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200 transition-colors" aria-label="Copy to Clipboard">
-                        <Copy size={16} /><span>Copy</span>
+                    <button onClick={() => onSaveToGallery(font)} className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 px-4 py-2.5 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-2" aria-label="Save to Gallery">
+                        <FolderHeart size={16} /> Save
                     </button>
                     <button onClick={() => handleDownload(font, { withBg: false })} className="flex items-center space-x-2 bg-slate-900 dark:bg-blue-600 text-white px-4 py-2.5 rounded-lg shadow-lg hover:bg-slate-800 dark:hover:bg-blue-500 text-sm font-medium transition-transform active:scale-95" aria-label="Download PNG">
                         <Download size={16} /><span>PNG</span>
@@ -409,6 +420,7 @@ const TypeMode: React.FC<TypeModeProps> = ({ text, setText, color, onShowToast, 
                         </button>
                         {activeDropdown === font.name && (
                             <div className="absolute right-0 bottom-full mb-2 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-100 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-50">
+                                <button onClick={() => handleCopy(font)} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2"><Copy size={14} className="text-slate-400" /> Copy to Clipboard</button>
                                 <button onClick={() => handleSignDocument(font)} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2"><ImagePlus size={14} className="text-slate-400" /> Sign Document</button>
                                 <button onClick={() => handleDownloadSVG(font)} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2"><FileCode size={14} className="text-slate-400" /> SVG (Vector)</button>
                                 <button onClick={() => handleDownload(font, { withBg: true })} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2"><span className="w-3 h-3 rounded-full border border-gray-200 bg-white"></span> White Background</button>

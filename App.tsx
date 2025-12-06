@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { PenTool, Keyboard, Shield, Zap, Layers, Menu, X, Star, Feather, Sun, Moon } from 'lucide-react';
+import { PenTool, Keyboard, Shield, Zap, Layers, Menu, X, Star, Feather, Sun, Moon, FolderHeart } from 'lucide-react';
 import TypeMode from './components/TypeMode';
 import ColorPicker from './components/ColorPicker';
 import Toast from './components/Toast';
 import DocumentSigner from './components/DocumentSigner';
-import { TabMode, SignatureColor, ToastMessage, AppView, Theme, DocumentData } from './types';
+import SignatureGallery from './components/SignatureGallery';
+import { TabMode, SignatureColor, ToastMessage, AppView, Theme, DocumentData, Stroke, TypeStyle, SavedSignature, FontOption } from './types';
 import useLocalStorage from './hooks/useLocalStorage';
 import { FONTS } from './constants';
 
@@ -31,6 +32,16 @@ function App() {
   const [activeTab, setActiveTab] = useLocalStorage<TabMode>('sc_active_tab', 'type');
   const [text, setText] = useLocalStorage<string>('sc_text', '');
   const [color, setColor] = useLocalStorage<SignatureColor>('sc_color', '#0f172a');
+  
+  // Lifted State for DrawMode
+  const [drawStrokes, setDrawStrokes] = useLocalStorage<Stroke[]>('sc_draw_strokes', []);
+
+  // Lifted State for TypeMode
+  const [typeStyle, setTypeStyle] = useLocalStorage<TypeStyle>('sc_type_style', { slant: 0, spacing: 0, subtitle: '' });
+
+  // Signature Gallery State
+  const [savedSignatures, setSavedSignatures] = useLocalStorage<SavedSignature[]>('sc_gallery', []);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   
   // Theme State
   const [theme, setTheme] = useLocalStorage<Theme>('sc_theme', 'light');
@@ -130,6 +141,54 @@ function App() {
       setDocData({ isOpen: true, signatureImage: signatureData });
   };
 
+  // Gallery Logic
+  const handleSaveDrawSignature = () => {
+    if (drawStrokes.length === 0) return;
+    const newSig: SavedSignature = {
+      id: Date.now().toString(),
+      type: 'drawn',
+      date: Date.now(),
+      color: color,
+      strokes: drawStrokes
+    };
+    setSavedSignatures([newSig, ...savedSignatures]);
+    showToast("Signature saved to Gallery", "success");
+  };
+
+  const handleSaveTypeSignature = (font: FontOption) => {
+    if (!text.trim()) return;
+    const newSig: SavedSignature = {
+      id: Date.now().toString(),
+      type: 'typed',
+      date: Date.now(),
+      text: text,
+      color: color,
+      fontFamily: font.family,
+      fontName: font.name,
+      style: typeStyle
+    };
+    setSavedSignatures([newSig, ...savedSignatures]);
+    showToast("Signature saved to Gallery", "success");
+  };
+
+  const handleLoadSignature = (sig: SavedSignature) => {
+    setColor(sig.color);
+    if (sig.type === 'drawn' && sig.strokes) {
+      setDrawStrokes(sig.strokes);
+      setActiveTab('draw');
+    } else if (sig.type === 'typed' && sig.text) {
+      setText(sig.text);
+      if (sig.style) setTypeStyle(sig.style);
+      setActiveTab('type');
+    }
+    showToast("Signature loaded", "info");
+  };
+
+  const handleDeleteSignature = (id: string) => {
+    setSavedSignatures(savedSignatures.filter(s => s.id !== id));
+    showToast("Signature deleted", "info");
+  };
+
   const NavLink = ({ view, label }: { view: AppView, label: string }) => (
       <button 
         onClick={() => handleNavigate(view)}
@@ -157,6 +216,17 @@ function App() {
             <NavLink view="about" label="About" />
             <NavLink view="contact" label="Contact" />
             
+            <div className="h-6 w-px bg-gray-200 dark:bg-slate-800"></div>
+
+            <button
+                onClick={() => setIsGalleryOpen(true)}
+                className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                aria-label="Open Gallery"
+            >
+                <FolderHeart size={18} />
+                <span>Gallery</span>
+            </button>
+
             {/* Dark Mode Toggle */}
             <button
                 onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
@@ -168,6 +238,12 @@ function App() {
           </nav>
 
           <div className="flex items-center gap-4 md:hidden">
+              <button
+                  onClick={() => setIsGalleryOpen(true)}
+                  className="p-2 text-slate-600 dark:text-slate-300"
+              >
+                  <FolderHeart size={20} />
+              </button>
               <button
                 onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
                 className="p-2 rounded-full text-slate-500 dark:text-slate-400"
@@ -249,12 +325,29 @@ function App() {
 
                   <div className="w-full relative">
                     <div className={activeTab === 'type' ? 'block' : 'hidden'}>
-                         <TypeMode text={text} setText={setText} color={color} onShowToast={showToast} onSignDocument={openDocumentSigner} />
+                         <TypeMode 
+                            text={text} 
+                            setText={setText} 
+                            color={color} 
+                            onShowToast={showToast} 
+                            onSignDocument={openDocumentSigner} 
+                            style={typeStyle}
+                            setStyle={setTypeStyle}
+                            onSaveToGallery={handleSaveTypeSignature}
+                         />
                     </div>
                     
                     <div className={activeTab === 'draw' ? 'block' : 'hidden'}>
                         <Suspense fallback={<LoadingSpinner />}>
-                             <DrawMode color={color} isVisible={activeTab === 'draw'} onShowToast={showToast} onSignDocument={openDocumentSigner} />
+                             <DrawMode 
+                                color={color} 
+                                isVisible={activeTab === 'draw'} 
+                                onShowToast={showToast} 
+                                onSignDocument={openDocumentSigner} 
+                                strokes={drawStrokes}
+                                onStrokesChange={setDrawStrokes}
+                                onSaveToGallery={handleSaveDrawSignature}
+                             />
                         </Suspense>
                     </div>
                   </div>
@@ -385,6 +478,15 @@ function App() {
             onShowToast={showToast}
           />
       )}
+
+      {/* Signature Gallery Modal */}
+      <SignatureGallery
+        isOpen={isGalleryOpen}
+        onClose={() => setIsGalleryOpen(false)}
+        signatures={savedSignatures}
+        onLoad={handleLoadSignature}
+        onDelete={handleDeleteSignature}
+      />
 
       <Toast toast={toast} onClose={() => setToast(null)} />
     </div>

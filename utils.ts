@@ -60,3 +60,19 @@ export const trimCanvas = (sourceCanvas: HTMLCanvasElement): HTMLCanvasElement =
 
   return trimmedCanvas;
 };
+
+export const getSvgPathFromStroke = (strokePoints: number[][]) => {
+  if (!strokePoints.length) return "";
+
+  const d = strokePoints.reduce(
+    (acc, [x0, y0], i, arr) => {
+      const [x1, y1] = arr[(i + 1) % arr.length];
+      acc.push(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
+      return acc;
+    },
+    ["M", ...strokePoints[0], "Q"]
+  );
+
+  d.push("Z");
+  return d.join(" ");
+};
