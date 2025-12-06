@@ -10,10 +10,9 @@ interface PageProps {
 const PageLayout: React.FC<{ 
     title: string; 
     subtitle?: string; 
-    breadcrumbName: string;
     children: React.ReactNode; 
     onNavigate: (view: AppView) => void 
-}> = ({ title, subtitle, breadcrumbName, children, onNavigate }) => {
+}> = ({ title, subtitle, children, onNavigate }) => {
     
     useEffect(() => {
         try {
@@ -54,7 +53,6 @@ const PageLayout: React.FC<{
 export const AboutPage: React.FC<PageProps> = ({ onNavigate }) => (
     <PageLayout 
         title="About Us" 
-        breadcrumbName="About Us"
         subtitle="Crafting digital authenticity in an artificial world." 
         onNavigate={onNavigate}
     >
@@ -95,7 +93,6 @@ export const AboutPage: React.FC<PageProps> = ({ onNavigate }) => (
 export const ContactPage: React.FC<PageProps> = ({ onNavigate }) => (
     <PageLayout 
         title="Contact Us" 
-        breadcrumbName="Contact"
         subtitle="We'd love to hear from you. Questions, feedback, or feature requests?" 
         onNavigate={onNavigate}
     >
@@ -131,7 +128,6 @@ export const ContactPage: React.FC<PageProps> = ({ onNavigate }) => (
 export const PrivacyPage: React.FC<PageProps> = ({ onNavigate }) => (
     <PageLayout 
         title="Privacy Policy" 
-        breadcrumbName="Privacy Policy"
         subtitle={`Effective Date: December 5, 2025`} 
         onNavigate={onNavigate}
     >
@@ -175,7 +171,6 @@ export const PrivacyPage: React.FC<PageProps> = ({ onNavigate }) => (
 export const TermsPage: React.FC<PageProps> = ({ onNavigate }) => (
     <PageLayout 
         title="Terms & Conditions" 
-        breadcrumbName="Terms"
         subtitle={`Last Updated: December 5, 2025`} 
         onNavigate={onNavigate}
     >

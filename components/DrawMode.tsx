@@ -1,6 +1,6 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Download, Trash2, Undo2, Redo2, PenTool, Edit3, FileCode, Play, Pause, Grid3X3, AlignJustify, Square, Copy, ImagePlus, Clapperboard } from 'lucide-react';
+import { Download, Trash2, Undo2, Redo2, PenTool, Edit3, Play, Pause, Grid3X3, AlignJustify, Square, Copy, ImagePlus, Clapperboard } from 'lucide-react';
 import { SignatureColor, PenStyle, Point, BackgroundPattern } from '../types';
 import { trimCanvas } from '../utils';
 import useLocalStorage from '../hooks/useLocalStorage';

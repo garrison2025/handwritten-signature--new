@@ -78,8 +78,6 @@ const DocumentSigner: React.FC<DocumentSignerProps> = ({ signatureImage, onClose
     // Draw Signature
     const sigImg = new Image();
     sigImg.onload = () => {
-      const containerRect = containerRef.current!.getBoundingClientRect();
-      
       // Calculate aspect ratio relative to container
       const sigWidth = docImage.naturalWidth * scale;
       const sigHeight = sigWidth * (sigImg.naturalHeight / sigImg.naturalWidth);

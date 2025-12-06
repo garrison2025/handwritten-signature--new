@@ -7,7 +7,7 @@ import Toast from './components/Toast';
 import DocumentSigner from './components/DocumentSigner';
 import { TabMode, SignatureColor, ToastMessage, AppView, Theme, DocumentData } from './types';
 import useLocalStorage from './hooks/useLocalStorage';
-import { FONTS, BLOG_POSTS } from './constants';
+import { FONTS } from './constants';
 
 // Code Splitting: Lazy load heavy components
 const DrawMode = React.lazy(() => import('./components/DrawMode'));

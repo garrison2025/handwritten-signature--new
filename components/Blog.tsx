@@ -57,7 +57,7 @@ const Blog: React.FC<BlogProps> = ({ view, activeSlug, onNavigate, onShowToast }
 
     const processContent = (content: string) => {
         let counter = 0;
-        const processed = content.replace(/<h([23])>(.*?)<\/h\1>/g, (match, level, text) => {
+        const processed = content.replace(/<h([23])>(.*?)<\/h\1>/g, (_, level, text) => {
             const id = `heading-${counter++}`;
             return `<h${level} id="${id}">${text}</h${level}>`;
         });
