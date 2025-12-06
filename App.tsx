@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, Suspense } from 'react';
 import { PenTool, Keyboard, Shield, Zap, Layers, Menu, X, Star, Feather, Sun, Moon, FolderHeart } from 'lucide-react';
 import TypeMode from './components/TypeMode';
@@ -36,8 +37,8 @@ function App() {
   // Lifted State for DrawMode
   const [drawStrokes, setDrawStrokes] = useLocalStorage<Stroke[]>('sc_draw_strokes', []);
 
-  // Lifted State for TypeMode
-  const [typeStyle, setTypeStyle] = useLocalStorage<TypeStyle>('sc_type_style', { slant: 0, spacing: 0, subtitle: '' });
+  // Lifted State for TypeMode - Added weight: 0
+  const [typeStyle, setTypeStyle] = useLocalStorage<TypeStyle>('sc_type_style', { slant: 0, spacing: 0, weight: 0, subtitle: '' });
 
   // Signature Gallery State
   const [savedSignatures, setSavedSignatures] = useLocalStorage<SavedSignature[]>('sc_gallery', []);

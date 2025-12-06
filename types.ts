@@ -4,7 +4,7 @@ export type SignatureColor = string;
 export interface FontOption {
   name: string;
   family: string;
-  category: 'elegant' | 'casual' | 'handwriting';
+  category: 'elegant' | 'casual' | 'handwriting' | 'scribble';
 }
 
 export type TabMode = 'type' | 'draw';
@@ -22,6 +22,7 @@ export interface SignatureSettings {
 export interface TypeStyle {
   slant: number; // -10 to 20 degrees
   spacing: number; // -5 to 15 pixels
+  weight: number; // 0 to 3 (simulated bold)
   subtitle?: string; // New subtitle field
 }
 

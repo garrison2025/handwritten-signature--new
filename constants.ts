@@ -2,32 +2,38 @@
 import { FontOption, SignatureColor, BlogPost } from './types';
 
 export const FONTS: FontOption[] = [
-  // Messy / Natural Handwriting (New & Enhanced)
+  // CEO Scribble / Business (Illegible/Fast)
+  { name: 'Dr Sugiyama', family: "'Dr Sugiyama', cursive", category: 'scribble' },
+  { name: 'Comforter Brush', family: "'Comforter Brush', cursive", category: 'scribble' },
+  { name: 'WindSong', family: "'WindSong', cursive", category: 'scribble' },
+  { name: 'Monsieur La Doulaise', family: "'Monsieur La Doulaise', cursive", category: 'scribble' },
+  { name: 'Mrs Saint Delafield', family: "'Mrs Saint Delafield', cursive", category: 'scribble' },
+  { name: 'Qwigley', family: "'Qwigley', cursive", category: 'scribble' },
+  { name: 'Reenie Beanie', family: "'Reenie Beanie', cursive", category: 'scribble' },
+
+  // Messy / Natural Handwriting
   { name: 'Waiting for the Sunrise', family: "'Waiting for the Sunrise', cursive", category: 'handwriting' },
   { name: 'Nothing You Could Do', family: "'Nothing You Could Do', cursive", category: 'handwriting' },
   { name: 'Zeyada', family: "'Zeyada', cursive", category: 'handwriting' },
   { name: 'Homemade Apple', family: "'Homemade Apple', cursive", category: 'handwriting' },
-  { name: 'Reenie Beanie', family: "'Reenie Beanie', cursive", category: 'handwriting' },
   { name: 'Covered By Your Grace', family: "'Covered By Your Grace', cursive", category: 'handwriting' },
   { name: 'Just Me Again Down Here', family: "'Just Me Again Down Here', cursive", category: 'handwriting' },
   { name: 'La Belle Aurore', family: "'La Belle Aurore', cursive", category: 'handwriting' },
-  { name: 'Gloria Hallelujah', family: "'Gloria Hallelujah', cursive", category: 'casual' },
+  { name: 'Meddon', family: "'Meddon', cursive", category: 'handwriting' },
   
-  // Existing Elegant
+  // Elegant / Cursive
   { name: 'Great Vibes', family: "'Great Vibes', cursive", category: 'elegant' },
-  { name: 'Mrs Saint Delafield', family: "'Mrs Saint Delafield', cursive", category: 'elegant' },
   { name: 'Pinyon Script', family: "'Pinyon Script', cursive", category: 'elegant' },
   { name: 'Parisienne', family: "'Parisienne', cursive", category: 'elegant' },
   { name: 'Allura', family: "'Allura', cursive", category: 'elegant' },
   { name: 'Herr Von Muellerhoff', family: "'Herr Von Muellerhoff', cursive", category: 'elegant' },
-  { name: 'Monsieur La Doulaise', family: "'Monsieur La Doulaise', cursive", category: 'elegant' },
   { name: 'Alex Brush', family: "'Alex Brush', cursive", category: 'elegant' },
+  { name: 'Sacramento', family: "'Sacramento', cursive", category: 'elegant' },
   
-  // Existing Casual
+  // Casual
   { name: 'Dancing Script', family: "'Dancing Script', cursive", category: 'casual' },
   { name: 'Caveat', family: "'Caveat', cursive", category: 'casual' },
-  { name: 'Meddon', family: "'Meddon', cursive", category: 'handwriting' },
-  { name: 'Sacramento', family: "'Sacramento', cursive", category: 'elegant' },
+  { name: 'Gloria Hallelujah', family: "'Gloria Hallelujah', cursive", category: 'casual' },
 ];
 
 export const COLORS: SignatureColor[] = [

@@ -80,6 +80,9 @@ const drawToCanvas = (
     ctx.transform(1, 0, Math.tan(skewRad * -1), 1, 0, 0);
     ctx.fillStyle = textColor;
     
+    // Enable Ligatures
+    (ctx as any).fontVariantLigatures = 'common-ligatures disjoint-ligatures context-alternates';
+    
     ctx.canvas.style.letterSpacing = `${drawStyle.spacing || 0}px`;
     ctx.font = `${fontSize}px ${fontFamily}`;
     let textWidth = ctx.measureText(textToDraw).width;
@@ -114,14 +117,32 @@ const drawToCanvas = (
             ctx.translate(currentX + charWidth/2, yJitter);
             ctx.rotate(angleJitter);
             ctx.scale(sizeJitter, sizeJitter);
+            
             ctx.fillText(char, -charWidth/2, 0);
+            
+            // Simulated Bold for Messy Fonts
+            if (drawStyle.weight && drawStyle.weight > 0) {
+                ctx.lineWidth = drawStyle.weight;
+                ctx.strokeStyle = textColor;
+                ctx.strokeText(char, -charWidth/2, 0);
+            }
+            
             ctx.restore();
             currentX += charWidth;
         }
     } else {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
+        
         ctx.fillText(textToDraw, 0, 0);
+        
+        // Simulated Bold for Standard Fonts
+        if (drawStyle.weight && drawStyle.weight > 0) {
+            ctx.lineWidth = drawStyle.weight;
+            ctx.strokeStyle = textColor;
+            ctx.strokeText(textToDraw, 0, 0);
+        }
+
         if (!useWhiteText) {
             ctx.globalAlpha = 0.2;
             const jitter = 0.5;
@@ -234,6 +255,9 @@ const LazyFontCard: React.FC<LazyFontCardProps> = ({
 
     const displayFont = isFontLoaded ? font.family : 'sans-serif';
     const isLoading = isVisible && !isFontLoaded;
+    
+    // Simulate weight in CSS preview using text-stroke
+    const textStroke = style.weight > 0 ? `${style.weight * 0.5}px ${color}` : 'none';
 
     return (
         <div ref={cardRef} className="group relative bg-white rounded-xl p-8 border border-gray-100 dark:border-slate-800 shadow-[0_4px_20px_rgb(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all duration-500 flex flex-col items-center justify-center min-h-[250px]">
@@ -244,6 +268,18 @@ const LazyFontCard: React.FC<LazyFontCardProps> = ({
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-300 dark:border-slate-600"></div>
                 </div>
             )}
+            
+            {/* Category Tag */}
+            <div className="absolute top-4 right-4">
+                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full ${
+                     font.category === 'scribble' ? 'bg-red-50 text-red-500 dark:bg-red-900/20' :
+                     font.category === 'elegant' ? 'bg-purple-50 text-purple-500 dark:bg-purple-900/20' :
+                     font.category === 'handwriting' ? 'bg-green-50 text-green-500 dark:bg-green-900/20' :
+                     'bg-blue-50 text-blue-500 dark:bg-blue-900/20'
+                 }`}>
+                     {font.category === 'scribble' ? 'CEO Scribble' : font.category}
+                 </span>
+            </div>
 
             <div className={`flex-grow flex items-center justify-center w-full overflow-hidden px-4 relative flex-col gap-2 transition-opacity duration-500 ${isFontLoaded ? 'opacity-100' : 'opacity-0'}`}>
                 {lineOptions.enabled && (
@@ -261,6 +297,8 @@ const LazyFontCard: React.FC<LazyFontCardProps> = ({
                         transform: `skewX(-${style.slant || 0}deg) translateY(${lineOptions.enabled ? '-10px' : '0px'}) rotate(${(Math.random() - 0.5) * 2}deg)`, 
                         letterSpacing: `${style.spacing || 0}px`, 
                         textShadow: `0px 0px 1px ${color}`, 
+                        WebkitTextStroke: textStroke,
+                        fontVariantLigatures: 'common-ligatures',
                         opacity: 0.9 
                     }} 
                     className="text-center break-words w-full select-none transition-all duration-300 z-10"
@@ -410,6 +448,9 @@ const TypeMode: React.FC<TypeModeProps> = ({
       </filter>
     </defs>`;
 
+    // Add stroke-width to SVG if simulated bold is active
+    const strokeAttr = style.weight > 0 ? `stroke="${textColor}" stroke-width="${style.weight}"` : '';
+
     const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="${viewBoxHeight}" viewBox="0 0 600 ${viewBoxHeight}">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=${font.name.replace(/ /g, '+')}&display=swap');
@@ -418,7 +459,7 @@ const TypeMode: React.FC<TypeModeProps> = ({
   </style>
   ${filterDef}
   ${extraElements}
-  <text x="50%" y="${yText}" dominant-baseline="middle" text-anchor="middle" class="signature" transform="skewX(${skewDeg})" letter-spacing="${style.spacing || 0}" filter="url(#ink-bleed)">${textToDraw}</text>
+  <text x="50%" y="${yText}" dominant-baseline="middle" text-anchor="middle" class="signature" transform="skewX(${skewDeg})" letter-spacing="${style.spacing || 0}" filter="url(#ink-bleed)" ${strokeAttr}>${textToDraw}</text>
 </svg>`.trim();
 
     const blob = new Blob([svgContent], { type: "image/svg+xml;charset=utf-8" });
@@ -510,6 +551,12 @@ const TypeMode: React.FC<TypeModeProps> = ({
                         <label>Spacing</label><span>{style.spacing}px</span>
                     </div>
                     <input type="range" min="-5" max="20" value={style.spacing} onChange={(e) => setStyle({...style, spacing: Number(e.target.value)})} className="w-full h-1.5 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer accent-slate-900 dark:accent-slate-200" />
+                </div>
+                <div className="space-y-3">
+                    <div className="flex justify-between text-xs uppercase tracking-wider font-semibold text-gray-400">
+                        <label>Thickness (Weight)</label><span>{style.weight > 0 ? '+' + style.weight : 'Normal'}</span>
+                    </div>
+                    <input type="range" min="0" max="3" step="0.5" value={style.weight || 0} onChange={(e) => setStyle({...style, weight: Number(e.target.value)})} className="w-full h-1.5 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer accent-slate-900 dark:accent-slate-200" />
                 </div>
                 <div className="md:col-span-2 pt-4 border-t border-gray-200/50 dark:border-slate-700/50 flex flex-col sm:flex-row items-center justify-between gap-4">
                      <span className="text-xs uppercase tracking-wider font-semibold text-gray-400 self-start sm:self-center">Signature Line</span>
