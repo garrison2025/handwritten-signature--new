@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, Suspense } from 'react';
 import { PenTool, Keyboard, Shield, Zap, Layers, Menu, X, Star, Feather, Sun, Moon, FolderHeart } from 'lucide-react';
 import TypeMode from './components/TypeMode';
@@ -107,13 +106,31 @@ function App() {
       return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  // SEO Logic (truncated for brevity, logic remains same as previous version)
+  // SEO Logic
   useEffect(() => {
-    // ... (Existing SEO logic matches previous file) ...
-    // Setting document title for now
+    // Setting document title
     let title = "SignCraft - Free Handwritten Signature Generator";
-    if (currentView === 'home' && activeTab === 'draw') title = "Draw Signature Online | SignCraft";
+    if (currentView === 'home') {
+        if (activeTab === 'draw') title = "Draw Signature Online | SignCraft";
+    } else if (currentView === 'about') {
+        title = "About Us | SignCraft";
+    } else if (currentView === 'blog') {
+        title = "Blog | SignCraft";
+    } else if (currentView === 'contact') {
+        title = "Contact | SignCraft";
+    }
+    // Note: Blog post titles are handled in the Blog component
     document.title = title;
+
+    // Update Canonical URL
+    const canonicalLink = document.querySelector("link[rel='canonical']") || document.createElement('link');
+    canonicalLink.setAttribute('rel', 'canonical');
+    const path = window.location.pathname === '/' ? '' : window.location.pathname;
+    canonicalLink.setAttribute('href', `https://handwrittensignaturegenerator.org${path}`);
+    if (!document.head.contains(canonicalLink)) {
+        document.head.appendChild(canonicalLink);
+    }
+
   }, [currentView, activeTab, activeBlogSlug]);
 
   const handleNavigate = (view: AppView, slug?: string) => {
