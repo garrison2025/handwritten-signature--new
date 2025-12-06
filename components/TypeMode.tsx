@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Download, Copy, RefreshCw, X, SlidersHorizontal, MoreHorizontal, FileCode, ImagePlus, FolderHeart } from 'lucide-react';
 import { FONTS, PRESET_TEXTS } from '../constants';
 import { SignatureColor, FontOption, TypeStyle, SignatureLineOptions } from '../types';
@@ -18,59 +18,16 @@ interface TypeModeProps {
   onSaveToGallery: (font: FontOption) => void;
 }
 
-const TypeMode: React.FC<TypeModeProps> = ({ 
-  text, 
-  setText, 
-  color, 
-  onShowToast, 
-  onSignDocument,
-  style,
-  setStyle,
-  onSaveToGallery
-}) => {
-  const [lineOptions, setLineOptions] = useLocalStorage<SignatureLineOptions>('sc_line_options', { enabled: false, style: 'solid', showX: true });
-  
-  const [showControls, setShowControls] = useState(false);
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const [fontsLoaded, setFontsLoaded] = useState(false);
-  const [debouncedText, setDebouncedText] = useState(text);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedText(text);
-    }, 300);
-    return () => clearTimeout(handler);
-  }, [text]);
-
-  useEffect(() => {
-    const fontUrl = "https://fonts.googleapis.com/css2?family=Alex+Brush&family=Allura&family=Caveat:wght@400..700&family=Dancing+Script:wght@400..700&family=Great+Vibes&family=Herr+Von+Muellerhoff&family=Meddon&family=Monsieur+La+Doulaise&family=Mrs+Saint+Delafield&family=Pacifico&family=Parisienne&family=Pinyon+Script&family=Sacramento&family=WindSong:wght@400;500&family=Nothing+You+Could+Do&family=Zeyada&family=Homemade+Apple&family=Just+Me+Again+Down+Here&family=La+Belle+Aurore&family=Reenie+Beanie&family=Waiting+for+the+Sunrise&family=Covered+By+Your+Grace&family=Gloria+Hallelujah&display=swap";
-    if (!document.querySelector(`link[href="${fontUrl}"]`)) {
-        const link = document.createElement('link');
-        link.href = fontUrl;
-        link.rel = 'stylesheet';
-        document.head.appendChild(link);
-    }
-    document.fonts.ready.then(() => setFontsLoaded(true));
-  }, []);
-
-  useEffect(() => {
-    const handleClickOutside = () => setActiveDropdown(null);
-    window.addEventListener('click', handleClickOutside);
-    return () => window.removeEventListener('click', handleClickOutside);
-  }, []);
-
-  const toggleDropdown = (e: React.MouseEvent, fontName: string) => {
-    e.stopPropagation();
-    setActiveDropdown(activeDropdown === fontName ? null : fontName);
-  };
-
-  const drawToCanvas = (
+// -- Helper: Draw Logic (Stateless) --
+const drawToCanvas = (
     ctx: CanvasRenderingContext2D, 
     font: FontOption, 
     textToDraw: string, 
     canvasWidth: number, 
     canvasHeight: number,
     drawStyle: TypeStyle,
+    color: string,
+    lineOptions: SignatureLineOptions,
     useWhiteText: boolean = false,
     useWhiteBackground: boolean = false
   ) => {
@@ -188,16 +145,211 @@ const TypeMode: React.FC<TypeModeProps> = ({
     ctx.canvas.style.letterSpacing = '0px';
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1.0;
+};
+
+
+// -- Sub-Component: Lazy Font Card --
+interface LazyFontCardProps {
+    font: FontOption;
+    text: string;
+    color: string;
+    style: TypeStyle;
+    lineOptions: SignatureLineOptions;
+    activeDropdown: string | null;
+    onToggleDropdown: (e: React.MouseEvent, fontName: string) => void;
+    onSaveToGallery: (font: FontOption) => void;
+    onDownload: (font: FontOption, options: { withBg?: boolean, whiteInk?: boolean }) => void;
+    onCopy: (font: FontOption) => void;
+    onSignDocument: (font: FontOption) => void;
+    onDownloadSVG: (font: FontOption) => void;
+}
+
+const LazyFontCard: React.FC<LazyFontCardProps> = ({
+    font,
+    text,
+    color,
+    style,
+    lineOptions,
+    activeDropdown,
+    onToggleDropdown,
+    onSaveToGallery,
+    onDownload,
+    onCopy,
+    onSignDocument,
+    onDownloadSVG
+}) => {
+    const cardRef = useRef<HTMLDivElement>(null);
+    const [isVisible, setIsVisible] = useState(false);
+    const [isFontLoaded, setIsFontLoaded] = useState(false);
+
+    // 1. Intersection Observer: Only load when card is near viewport
+    useEffect(() => {
+        const observer = new IntersectionObserver(([entry]) => {
+            if (entry.isIntersecting) {
+                setIsVisible(true);
+                observer.disconnect(); // Stop observing once visible
+            }
+        }, {
+            rootMargin: '200px' // Preload 200px before it hits view
+        });
+
+        if (cardRef.current) {
+            observer.observe(cardRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, []);
+
+    // 2. Load Font when visible
+    useEffect(() => {
+        if (isVisible) {
+            const fontName = font.name.replace(/ /g, '+');
+            // Handle specific weights for fonts that might need them, or default to standard
+            let weightSpec = '';
+            if (['Caveat', 'Dancing Script'].includes(font.name)) {
+                weightSpec = ':wght@400..700';
+            } else if (['WindSong'].includes(font.name)) {
+                weightSpec = ':wght@400;500';
+            }
+
+            const url = `https://fonts.googleapis.com/css2?family=${fontName}${weightSpec}&display=swap`;
+            
+            // Avoid duplicate link injection
+            if (!document.querySelector(`link[href="${url}"]`)) {
+                const link = document.createElement('link');
+                link.href = url;
+                link.rel = 'stylesheet';
+                document.head.appendChild(link);
+            }
+
+            // Wait for font to actually be available to canvas/DOM
+            document.fonts.load(`1em "${font.family}"`).then(() => {
+                setIsFontLoaded(true);
+            }).catch(() => {
+                // Fallback if load fails, still show card
+                setIsFontLoaded(true);
+            });
+        }
+    }, [isVisible, font.name, font.family]);
+
+    const displayFont = isFontLoaded ? font.family : 'sans-serif';
+    const isLoading = isVisible && !isFontLoaded;
+
+    return (
+        <div ref={cardRef} className="group relative bg-white rounded-xl p-8 border border-gray-100 dark:border-slate-800 shadow-[0_4px_20px_rgb(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all duration-500 flex flex-col items-center justify-center min-h-[250px]">
+            
+            {/* Loading State */}
+            {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center z-30 bg-white/50 dark:bg-slate-900/50">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-300 dark:border-slate-600"></div>
+                </div>
+            )}
+
+            <div className={`flex-grow flex items-center justify-center w-full overflow-hidden px-4 relative flex-col gap-2 transition-opacity duration-500 ${isFontLoaded ? 'opacity-100' : 'opacity-0'}`}>
+                {lineOptions.enabled && (
+                    <div className="absolute w-full bottom-[25%] left-0 px-8 pointer-events-none opacity-50">
+                        {lineOptions.showX && (<span className="absolute left-8 bottom-1 font-sans font-bold text-2xl text-slate-300">X</span>)}
+                        <div className="w-full h-px bg-slate-300" style={{ borderBottom: lineOptions.style === 'dashed' ? '1px dashed #cbd5e1' : '1px solid #cbd5e1', background: 'transparent'}} />
+                    </div>
+                )}
+                <p 
+                    style={{ 
+                        fontFamily: displayFont, 
+                        color: color, 
+                        fontSize: 'clamp(2rem, 8vw, 3.5rem)', 
+                        lineHeight: 1.2, 
+                        transform: `skewX(-${style.slant || 0}deg) translateY(${lineOptions.enabled ? '-10px' : '0px'}) rotate(${(Math.random() - 0.5) * 2}deg)`, 
+                        letterSpacing: `${style.spacing || 0}px`, 
+                        textShadow: `0px 0px 1px ${color}`, 
+                        opacity: 0.9 
+                    }} 
+                    className="text-center break-words w-full select-none transition-all duration-300 z-10"
+                >
+                    {text.trim() || 'Signature'}
+                </p>
+                {style.subtitle && (
+                    <p className="text-center font-sans font-medium text-slate-500 text-sm tracking-widest uppercase mt-4 z-10 opacity-80" style={{ color: color }}>{style.subtitle}</p>
+                )}
+            </div>
+            
+            <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-xl backdrop-blur-[2px] z-20">
+              <div className="flex flex-col items-center space-y-3 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                <div className="flex items-center space-x-2">
+                    <button onClick={() => onSaveToGallery(font)} className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 px-4 py-2.5 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-2" aria-label="Save to Gallery">
+                        <FolderHeart size={16} /> Save
+                    </button>
+                    <button onClick={() => onDownload(font, { withBg: false })} className="flex items-center space-x-2 bg-slate-900 dark:bg-blue-600 text-white px-4 py-2.5 rounded-lg shadow-lg hover:bg-slate-800 dark:hover:bg-blue-500 text-sm font-medium transition-transform active:scale-95" aria-label="Download PNG">
+                        <Download size={16} /><span>PNG</span>
+                    </button>
+                    <div className="relative">
+                        <button onClick={(e) => onToggleDropdown(e, font.name)} className={`p-2.5 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors ${activeDropdown === font.name ? 'bg-gray-100 dark:bg-slate-700 ring-2 ring-slate-200 dark:ring-slate-600' : 'bg-white dark:bg-slate-800'}`}>
+                            <MoreHorizontal size={16} className="text-slate-600 dark:text-slate-300" />
+                        </button>
+                        {activeDropdown === font.name && (
+                            <div className="absolute right-0 bottom-full mb-2 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-100 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-50">
+                                <button onClick={() => onCopy(font)} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2"><Copy size={14} className="text-slate-400" /> Copy to Clipboard</button>
+                                <button onClick={() => onSignDocument(font)} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2"><ImagePlus size={14} className="text-slate-400" /> Sign Document</button>
+                                <button onClick={() => onDownloadSVG(font)} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2"><FileCode size={14} className="text-slate-400" /> SVG (Vector)</button>
+                                <button onClick={() => onDownload(font, { withBg: true })} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2"><span className="w-3 h-3 rounded-full border border-gray-200 bg-white"></span> White Background</button>
+                                <button onClick={() => onDownload(font, { whiteInk: true })} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2 border-t border-gray-50 dark:border-slate-700"><span className="w-3 h-3 rounded-full border border-gray-300 bg-slate-900"></span> White Ink</button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+              </div>
+            </div>
+            <div className="absolute bottom-4 left-0 w-full text-center opacity-100 group-hover:opacity-0 transition-opacity duration-200">
+              <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-medium">{font.name}</span>
+            </div>
+        </div>
+    );
+};
+
+
+// -- Main Component --
+const TypeMode: React.FC<TypeModeProps> = ({ 
+  text, 
+  setText, 
+  color, 
+  onShowToast, 
+  onSignDocument,
+  style,
+  setStyle,
+  onSaveToGallery
+}) => {
+  const [lineOptions, setLineOptions] = useLocalStorage<SignatureLineOptions>('sc_line_options', { enabled: false, style: 'solid', showX: true });
+  
+  const [showControls, setShowControls] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [debouncedText, setDebouncedText] = useState(text);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedText(text);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [text]);
+
+  // Global click handler to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = () => setActiveDropdown(null);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  const toggleDropdown = (e: React.MouseEvent, fontName: string) => {
+    e.stopPropagation();
+    setActiveDropdown(activeDropdown === fontName ? null : fontName);
   };
 
-  const handleDownload = (font: FontOption, options: { withBg?: boolean, whiteInk?: boolean }) => {
+  const handleDownload = useCallback((font: FontOption, options: { withBg?: boolean, whiteInk?: boolean }) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     canvas.width = 1200;
     canvas.height = 800; 
     const textToDraw = text.trim() || 'Signature';
-    drawToCanvas(ctx, font, textToDraw, canvas.width, canvas.height, style, options.whiteInk, options.withBg);
+    drawToCanvas(ctx, font, textToDraw, canvas.width, canvas.height, style, color, lineOptions, options.whiteInk, options.withBg);
     const trimmed = trimCanvas(canvas);
     const dataUrl = trimmed.toDataURL('image/png');
     const link = document.createElement('a');
@@ -211,22 +363,22 @@ const TypeMode: React.FC<TypeModeProps> = ({
     document.body.removeChild(link);
     setActiveDropdown(null);
     onShowToast("Signature downloaded successfully", "success");
-  };
+  }, [text, color, style, lineOptions, onShowToast]);
 
-  const handleSignDocument = (font: FontOption) => {
+  const handleSignDocument = useCallback((font: FontOption) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     canvas.width = 1200;
     canvas.height = 800; 
     const textToDraw = text.trim() || 'Signature';
-    drawToCanvas(ctx, font, textToDraw, canvas.width, canvas.height, style);
+    drawToCanvas(ctx, font, textToDraw, canvas.width, canvas.height, style, color, lineOptions);
     const trimmed = trimCanvas(canvas);
     onSignDocument(trimmed.toDataURL('image/png'));
     setActiveDropdown(null);
-  }
+  }, [text, color, style, lineOptions, onSignDocument]);
 
-  const handleDownloadSVG = (font: FontOption) => {
+  const handleDownloadSVG = useCallback((font: FontOption) => {
     const textToDraw = text.trim() || 'Signature';
     const fontFamily = font.family.split(',')[0].trim();
     const skewDeg = (style.slant || 0) * -1;
@@ -279,9 +431,9 @@ const TypeMode: React.FC<TypeModeProps> = ({
     document.body.removeChild(link);
     setActiveDropdown(null);
     onShowToast("Vector SVG downloaded", "success");
-  };
+  }, [text, color, style, lineOptions, onShowToast]);
 
-  const handleCopy = async (font: FontOption) => {
+  const handleCopy = useCallback(async (font: FontOption) => {
     try {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
@@ -289,7 +441,7 @@ const TypeMode: React.FC<TypeModeProps> = ({
       canvas.width = 1200;
       canvas.height = 800;
       const textToDraw = text.trim() || 'Signature';
-      drawToCanvas(ctx, font, textToDraw, canvas.width, canvas.height, style);
+      drawToCanvas(ctx, font, textToDraw, canvas.width, canvas.height, style, color, lineOptions);
       const trimmed = trimCanvas(canvas);
       trimmed.toBlob(async (blob) => {
         if (!blob) return;
@@ -300,18 +452,8 @@ const TypeMode: React.FC<TypeModeProps> = ({
       console.error('Failed to copy image: ', err);
       onShowToast("Failed to copy", "info");
     }
-  };
+  }, [text, color, style, lineOptions, onShowToast]);
 
-  if (!fontsLoaded) {
-      return (
-          <div className="flex items-center justify-center h-64">
-              <div className="flex flex-col items-center gap-4">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 dark:border-slate-100"></div>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm">Loading fonts...</p>
-              </div>
-          </div>
-      )
-  }
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
@@ -385,56 +527,24 @@ const TypeMode: React.FC<TypeModeProps> = ({
           )}
       </div>
 
+      {/* Lazy Loaded Font Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {FONTS.map((font) => (
-          <div key={font.name} className="group relative bg-white rounded-xl p-8 border border-gray-100 dark:border-slate-800 shadow-[0_4px_20px_rgb(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all duration-500 flex flex-col items-center justify-center min-h-[250px]">
-            {/* White paper background even in dark mode for correct signature preview */}
-            
-            <div className="flex-grow flex items-center justify-center w-full overflow-hidden px-4 relative flex-col gap-2">
-                {lineOptions.enabled && (
-                    <div className="absolute w-full bottom-[25%] left-0 px-8 pointer-events-none opacity-50">
-                        {lineOptions.showX && (<span className="absolute left-8 bottom-1 font-sans font-bold text-2xl text-slate-300">X</span>)}
-                        <div className="w-full h-px bg-slate-300" style={{ borderBottom: lineOptions.style === 'dashed' ? '1px dashed #cbd5e1' : '1px solid #cbd5e1', background: 'transparent'}} />
-                    </div>
-                )}
-              <p style={{ fontFamily: font.family, color: color, fontSize: 'clamp(2rem, 8vw, 3.5rem)', lineHeight: 1.2, transform: `skewX(-${style.slant || 0}deg) translateY(${lineOptions.enabled ? '-10px' : '0px'}) rotate(${(Math.random() - 0.5) * 2}deg)`, letterSpacing: `${style.spacing || 0}px`, textShadow: `0px 0px 1px ${color}`, opacity: 0.9 }} className="text-center break-words w-full select-none transition-all duration-300 z-10">
-                {debouncedText.trim() || 'Signature'}
-              </p>
-              {style.subtitle && (
-                  <p className="text-center font-sans font-medium text-slate-500 text-sm tracking-widest uppercase mt-4 z-10 opacity-80" style={{ color: color }}>{style.subtitle}</p>
-              )}
-            </div>
-            
-            <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-xl backdrop-blur-[2px] z-20">
-              <div className="flex flex-col items-center space-y-3 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-                <div className="flex items-center space-x-2">
-                    <button onClick={() => onSaveToGallery(font)} className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 px-4 py-2.5 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-2" aria-label="Save to Gallery">
-                        <FolderHeart size={16} /> Save
-                    </button>
-                    <button onClick={() => handleDownload(font, { withBg: false })} className="flex items-center space-x-2 bg-slate-900 dark:bg-blue-600 text-white px-4 py-2.5 rounded-lg shadow-lg hover:bg-slate-800 dark:hover:bg-blue-500 text-sm font-medium transition-transform active:scale-95" aria-label="Download PNG">
-                        <Download size={16} /><span>PNG</span>
-                    </button>
-                    <div className="relative">
-                        <button onClick={(e) => toggleDropdown(e, font.name)} className={`p-2.5 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors ${activeDropdown === font.name ? 'bg-gray-100 dark:bg-slate-700 ring-2 ring-slate-200 dark:ring-slate-600' : 'bg-white dark:bg-slate-800'}`}>
-                            <MoreHorizontal size={16} className="text-slate-600 dark:text-slate-300" />
-                        </button>
-                        {activeDropdown === font.name && (
-                            <div className="absolute right-0 bottom-full mb-2 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-100 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-50">
-                                <button onClick={() => handleCopy(font)} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2"><Copy size={14} className="text-slate-400" /> Copy to Clipboard</button>
-                                <button onClick={() => handleSignDocument(font)} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2"><ImagePlus size={14} className="text-slate-400" /> Sign Document</button>
-                                <button onClick={() => handleDownloadSVG(font)} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2"><FileCode size={14} className="text-slate-400" /> SVG (Vector)</button>
-                                <button onClick={() => handleDownload(font, { withBg: true })} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2"><span className="w-3 h-3 rounded-full border border-gray-200 bg-white"></span> White Background</button>
-                                <button onClick={() => handleDownload(font, { whiteInk: true })} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2 border-t border-gray-50 dark:border-slate-700"><span className="w-3 h-3 rounded-full border border-gray-300 bg-slate-900"></span> White Ink</button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-              </div>
-            </div>
-            <div className="absolute bottom-4 left-0 w-full text-center opacity-100 group-hover:opacity-0 transition-opacity duration-200">
-              <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-medium">{font.name}</span>
-            </div>
-          </div>
+          <LazyFontCard 
+            key={font.name}
+            font={font}
+            text={debouncedText}
+            color={color}
+            style={style}
+            lineOptions={lineOptions}
+            activeDropdown={activeDropdown}
+            onToggleDropdown={toggleDropdown}
+            onSaveToGallery={onSaveToGallery}
+            onDownload={handleDownload}
+            onCopy={handleCopy}
+            onSignDocument={handleSignDocument}
+            onDownloadSVG={handleDownloadSVG}
+          />
         ))}
       </div>
     </div>
