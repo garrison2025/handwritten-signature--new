@@ -44,6 +44,11 @@
 
     <!-- Tailwind CSS with Typography Plugin for better prose -->
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     
@@ -218,9 +223,13 @@
         left: 0;
         right: 0;
         height: 4px;
-        background: #2563eb;
         transform-origin: 0%;
         z-index: 9999;
+      }
+
+      /* Dark mode smooth transition */
+      html {
+        transition: background-color 0.3s, color 0.3s;
       }
     </style>
   <script type="importmap">
@@ -235,7 +244,7 @@
 }
 </script>
 </head>
-  <body class="bg-[#F8F9FA] text-slate-900 antialiased selection:bg-slate-900 selection:text-white">
+  <body class="bg-[#F8F9FA] dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased selection:bg-slate-900 selection:text-white dark:selection:bg-blue-500">
     <a href="#root" class="skip-link">Skip to content</a>
     <div id="root"></div>
     <script>
@@ -248,6 +257,15 @@
           });
         });
       }
+      
+      // Check for saved theme
+      try {
+          const item = window.localStorage.getItem('sc_theme');
+          const theme = item ? JSON.parse(item) : 'light';
+          if (theme === 'dark') {
+              document.documentElement.classList.add('dark');
+          }
+      } catch (e) {}
     </script>
   </body>
 </html>

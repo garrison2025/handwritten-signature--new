@@ -23,28 +23,27 @@ const PageLayout: React.FC<{
 
     return (
         <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
-            {/* Simple Back Button (Reverted from Breadcrumbs) */}
             <button 
                 onClick={() => onNavigate('home')} 
-                className="flex items-center text-slate-500 hover:text-slate-900 transition-colors mb-8 group text-sm font-medium"
+                className="flex items-center text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors mb-8 group text-sm font-medium"
             >
                 <ArrowLeft size={16} className="mr-2 group-hover:-translate-x-1 transition-transform" />
                 Back to Generator
             </button>
 
-            <div className="bg-white rounded-[1.5rem] sm:rounded-[2rem] shadow-sm border border-gray-100 p-6 sm:p-12 lg:p-16">
-                <header className="mb-10 sm:mb-12 border-b border-gray-100 pb-8 sm:pb-10">
-                    <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif-display text-slate-900 mb-4 leading-tight">
+            <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] sm:rounded-[2rem] shadow-sm border border-gray-100 dark:border-slate-800 p-6 sm:p-12 lg:p-16">
+                <header className="mb-10 sm:mb-12 border-b border-gray-100 dark:border-slate-800 pb-8 sm:pb-10">
+                    <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif-display text-slate-900 dark:text-white mb-4 leading-tight">
                         {title}
                     </h1>
                     {subtitle && (
-                        <p className="text-base sm:text-lg text-slate-500 font-light max-w-2xl leading-relaxed">
+                        <p className="text-base sm:text-lg text-slate-500 dark:text-slate-400 font-light max-w-2xl leading-relaxed">
                             {subtitle}
                         </p>
                     )}
                 </header>
 
-                <div className="prose prose-slate prose-lg max-w-none prose-headings:font-serif-display prose-headings:font-medium prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline">
+                <div className="prose prose-slate dark:prose-invert prose-lg max-w-none prose-headings:font-serif-display prose-headings:font-medium prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline">
                     {children}
                 </div>
             </div>
@@ -70,17 +69,17 @@ export const AboutPage: React.FC<PageProps> = ({ onNavigate }) => (
 
         <h3>Why We Are Different</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 not-prose my-10">
-            <div className="p-6 bg-slate-50 rounded-xl">
-                <Shield className="w-8 h-8 text-slate-900 mb-4" />
-                <h4 className="font-bold text-slate-900 mb-2">Zero-Knowledge Privacy</h4>
-                <p className="text-sm text-slate-600 leading-relaxed">
+            <div className="p-6 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                <Shield className="w-8 h-8 text-slate-900 dark:text-white mb-4" />
+                <h4 className="font-bold text-slate-900 dark:text-white mb-2">Zero-Knowledge Privacy</h4>
+                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                     We built SignCraft with a "Client-Side First" architecture. Your keystrokes and drawings never leave your browser.
                 </p>
             </div>
-            <div className="p-6 bg-slate-50 rounded-xl">
-                <FileText className="w-8 h-8 text-slate-900 mb-4" />
-                <h4 className="font-bold text-slate-900 mb-2">Vector Precision</h4>
-                <p className="text-sm text-slate-600 leading-relaxed">
+            <div className="p-6 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                <FileText className="w-8 h-8 text-slate-900 dark:text-white mb-4" />
+                <h4 className="font-bold text-slate-900 dark:text-white mb-2">Vector Precision</h4>
+                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                     Unlike basic tools that output blurry images, we rely on advanced SVG vector paths for crisp scaling.
                 </p>
             </div>
@@ -104,7 +103,7 @@ export const ContactPage: React.FC<PageProps> = ({ onNavigate }) => (
             At <strong>HandwrittenSignatureGenerator.org</strong>, we are constantly striving to improve our tool. Whether you've found a bug, want to request a new font style, or just want to say hello, we are here to listen.
         </p>
 
-        <div className="bg-slate-900 text-white p-8 rounded-2xl my-10 not-prose flex flex-col items-center text-center space-y-4 shadow-xl shadow-slate-900/10">
+        <div className="bg-slate-900 dark:bg-slate-800 text-white p-8 rounded-2xl my-10 not-prose flex flex-col items-center text-center space-y-4 shadow-xl shadow-slate-900/10">
             <div className="bg-white/10 p-3 rounded-full">
                 <Mail className="w-6 h-6 text-white" />
             </div>
@@ -121,7 +120,7 @@ export const ContactPage: React.FC<PageProps> = ({ onNavigate }) => (
         </div>
 
         <h3>Frequently Asked Topics</h3>
-        <ul className="list-disc pl-5 space-y-2 text-slate-600">
+        <ul className="list-disc pl-5 space-y-2 text-slate-600 dark:text-slate-400">
             <li><strong>Feature Requests:</strong> Do you need a specific pen style or export format?</li>
             <li><strong>Bug Reports:</strong> Is the drawing pad not responding on your specific device?</li>
             <li><strong>Business:</strong> Interested in integrating our signature pad into your workflow?</li>
@@ -151,11 +150,11 @@ export const PrivacyPage: React.FC<PageProps> = ({ onNavigate }) => (
         </p>
 
         <h3>3. Data Security</h3>
-        <div className="flex items-start gap-4 bg-green-50 p-4 rounded-lg border border-green-100 not-prose my-6">
-            <Lock className="w-6 h-6 text-green-700 flex-shrink-0 mt-1" />
+        <div className="flex items-start gap-4 bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-100 dark:border-green-900/30 not-prose my-6">
+            <Lock className="w-6 h-6 text-green-700 dark:text-green-400 flex-shrink-0 mt-1" />
             <div>
-                <h4 className="font-bold text-green-800 text-sm">End-to-End Client Security</h4>
-                <p className="text-green-700 text-sm mt-1">
+                <h4 className="font-bold text-green-800 dark:text-green-300 text-sm">End-to-End Client Security</h4>
+                <p className="text-green-700 dark:text-green-400 text-sm mt-1">
                     Since no signature data is ever uploaded to the cloud, there is zero risk of your signature being intercepted or leaked from a database breach on our end.
                 </p>
             </div>
@@ -224,7 +223,6 @@ export const TermsPage: React.FC<PageProps> = ({ onNavigate }) => (
     </PageLayout>
 );
 
-// Wrapper for Lazy Loading
 export const InfoPageWrapper: React.FC<{view: AppView, onNavigate: (view: AppView) => void}> = ({ view, onNavigate }) => {
     switch (view) {
         case 'about': return <AboutPage onNavigate={onNavigate} />;

@@ -65,3 +65,10 @@ export interface BlogPost {
   tags: string[];
   image?: string;
 }
+
+export type Theme = 'light' | 'dark';
+
+export interface DocumentData {
+    isOpen: boolean;
+    signatureImage: string | null; // Data URL of the generated signature
+}
